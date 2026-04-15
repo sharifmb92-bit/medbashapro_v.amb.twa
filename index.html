@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    <title>Med Basha Pro - TMSA Menorca</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" rel="stylesheet" />
+
+    <style>
+        [x-cloak] { display: none !important; }
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; height: 100vh; overflow: hidden; user-select: none; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.5rem; }
+        .input-field { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 1rem; text-align: center; }
+        .btn-press:active { transform: scale(0.96); transition: 0.1s; }
+        
+        /* TEMAS */
+        .theme-blue { --main-color: #3b82f6; }
+        .theme-emerald { --main-color: #10b981; }
+        .theme-purple { --main-color: #a855f7; }
+        .theme-gray { --main-color: #94a3b8; } /* Tu Gris Personalizado */
+        .theme-amber { --main-color: #f59e0b; }
+
+        .dynamic-text { color: var(--main-color); }
+        .dynamic-bg { background-color: var(--main-color); }
+        input[type="time"] { color-scheme: dark; border: none; outline: none; }
+        
+        .error-field { border: 2px solid #ef4444 !important; animation: shake 0.5s; }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+</head>
+<body x-data="tmsaPro()" x-init="initApp()" x-cloak :class="'theme-' + config.theme" :style="{ fontSize: config.fontSize + 'px' }">
+
+    <template x-if="screen === 1">
+        <div class="flex flex-col h-full p-4 space-y-4">
+            <header class="flex justify-between items-end pb-2">
+                <div>
+                    <h1 class="text-2xl font-extrabold italic text-white tracking-tighter">MED BASHA <span class="dynamic-text">PRO</span></h1>
+                    <p class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Bus Driver • Menorca</p>
+                </div>
+                <button @click="screen = 4" class="p-2 glass-card btn-press text-slate-400"><span class="material-symbols-rounded">settings</span></button>
+            </header>
+
+            <div class="glass-card p-4 shadow-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="font-extrabold dynamic-text uppercase text-xs" x-text="mesNombre + ' ' + año"></span>
+                    <div class="flex gap-4">
+                        <button @click="cambiarMes(-1)" class="p-1"><span class="material-symbols-rounded">chevron_left</span></button>
+                        <button @click="cambiarMes(1)" class="p-1"><span class="material-symbols-rounded">chevron_right</span></button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-7 gap-1 text-center text-[9px] font-black text-slate-600 mb-2">
+                    <span>LU</span><span>MA</span><span>MI</span><span>JU</span><span>VI</span><span>SA</span><span>DO</span>
+                </div>
+                <div class="grid grid-cols-7 gap-1 text-center">
+                    <template x-for="dia in diasCalendario" :key="dia.fecha">
+                        <div @click="seleccionarDia(dia.fecha)" class="py-2 flex flex-col items-center cursor-pointer rounded-xl" :class="dia.fecha === fechaSeleccionada ? 'bg-white/10' : ''">
+                            <span :class="dia.isHoy ? 'dynamic-bg text-white rounded-full w-7 h-7 flex items-center justify-center' : 'text-slate-400'" class="text-xs font-bold" x-text="dia.num"></span>
+                            <div class="flex gap-0.5 mt-1 h-1">
+                                <template x-if="estadoJornada(dia.fecha)"><div class="w-1.5 h-1.5 rounded-full dynamic-bg"></div></template>
+                                <template x-if="tieneBorrador(dia.fecha) && !estadoJornada(dia.fecha)"><div class="w-1.5 h-1.5 rounded-full bg-slate-500 animate-pulse"></div></template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <button @click="abrirRegistroRapido(false)" class="glass-card p-5 btn-press border-b-4 border-blue-600 flex flex-col items-center">
+                    <span class="material-symbols-rounded text-blue-500 text-3xl">timer</span>
+                    <p class="text-[10px] font-black uppercase mt-2">Continua</p>
+                </button>
+                <button @click="abrirRegistroRapido(true)" class="glass-card p-5 btn-press border-b-4 border-orange-600 flex flex-col items-center">
+                    <span class="material-symbols-rounded text-orange-500 text-3xl">wb_twilight</span>
+                    <p class="text-[10px] font-black uppercase mt-2">Partida</p>
+                </button>
+            </div>
+
+            <div class="flex-grow flex flex-col items-center justify-center cursor-pointer" @click="screen = 3">
+                <h2 class="text-7xl font-black tracking-tighter text-white" x-text="currentTime"></h2>
+            </div>
+
+            <button @click="screen = 3" class="w-full py-4 glass-card font-black text-[10px] uppercase tracking-[0.2em] text-slate-400 btn-press">Abrir Resumen Mensual</button>
+        </div>
+    </template>
+
+    <template x-if="screen === 2">
+        <div class="flex flex-col h-full p-4 space-y-4 overflow-hidden">
+            <header class="flex items-center justify-between">
+                <button @click="screen = 1" class="p-2 btn-press"><span class="material-symbols-rounded">arrow_back</span></button>
+                <span class="text-[10px] font-black uppercase tracking-widest text-slate-500" x-text="formatearFechaLarga(fechaSeleccionada)"></span>
+                <div class="w-10"></div>
+            </header>
+
+            <div class="flex-grow space-y-4 overflow-y-auto pb-40">
+                <div class="glass-card p-4 space-y-4 border-l-4 border-blue-600 shadow-2xl">
+                    <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                        <span class="text-[11px] font-black uppercase text-blue-400">Bloque 1</span>
+                        <input type="text" x-model="form.bus1" :class="{'error-field': errorBus && !form.bus1}" @input="saveDraft()" placeholder="Nº BUS" class="w-24 py-1 input-field text-yellow-500 font-black text-sm uppercase outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="input-field p-2"><label class="text-[7px] font-bold text-slate-500 uppercase block">Inicio</label><input type="time" x-model="form.horaE1" @input="calcularTodo(); saveDraft()" class="w-full text-xl font-black text-blue-400 bg-transparent"></div>
+                        <div class="input-field p-2"><label class="text-[7px] font-bold text-slate-500 uppercase block">Fin</label><input type="time" x-model="form.horaS1" @input="validarFin(1)" class="w-full text-xl font-black text-blue-400 bg-transparent"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="number" x-model="form.kmI1" @input="calcularTodo(); saveDraft()" placeholder="KM Ini" class="p-2 input-field text-xs font-bold text-white outline-none">
+                        <input type="number" x-model="form.kmF1" @input="calcularTodo(); saveDraft()" placeholder="KM Fin" class="p-2 input-field text-xs font-bold text-white outline-none">
+                    </div>
+                </div>
+
+                <template x-if="form.esPartida">
+                    <div class="glass-card p-4 space-y-4 border-l-4 border-orange-500 shadow-2xl">
+                        <div class="flex justify-between items-center border-b border-white/5 pb-2">
+                            <span class="text-[11px] font-black uppercase text-orange-400">Bloque 2</span>
+                            <input type="text" x-model="form.bus2" :class="{'error-field': errorBus && !form.bus2}" @input="saveDraft()" placeholder="Nº BUS" class="w-24 py-1 input-field text-yellow-500 font-black text-sm uppercase outline-none">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="input-field p-2"><label class="text-[7px] font-bold text-slate-500 uppercase block">Inicio</label><input type="time" x-model="form.horaE2" @input="calcularTodo(); saveDraft()" class="w-full text-xl font-black text-orange-400 bg-transparent"></div>
+                            <div class="input-field p-2"><label class="text-[7px] font-bold text-slate-500 uppercase block">Fin</label><input type="time" x-model="form.horaS2" @input="validarFin(2)" class="w-full text-xl font-black text-orange-400 bg-transparent"></div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <input type="number" x-model="form.kmI2" @input="calcularTodo(); saveDraft()" placeholder="KM Ini" class="p-2 input-field text-xs font-bold text-white outline-none">
+                            <input type="number" x-model="form.kmF2" @input="calcularTodo(); saveDraft()" placeholder="KM Fin" class="p-2 input-field text-xs font-bold text-white outline-none">
+                        </div>
+                    </div>
+                </template>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button @click="form.comida = (form.comida === 'SI' ? 'NO' : 'SI'); saveDraft()" 
+                            class="glass-card p-4 btn-press border-t-2 transition-all flex flex-col items-center" 
+                            :class="form.comida === 'SI' ? (cumpleLogicaComida() ? 'border-green-500 bg-green-500/10' : 'border-amber-500 bg-amber-500/10') : 'border-transparent'">
+                        <span class="material-symbols-rounded text-slate-500">restaurant</span>
+                        <p class="text-[8px] font-black uppercase mt-1">Comida</p>
+                        <p class="text-xs font-black" :class="form.comida === 'SI' ? (cumpleLogicaComida() ? 'text-green-400' : 'text-amber-400') : 'text-slate-700'" x-text="form.comida"></p>
+                    </button>
+                    <button @click="form.cena = (form.cena === 'SI' ? 'NO' : 'SI'); saveDraft()" 
+                            class="glass-card p-4 btn-press border-t-2 transition-all flex flex-col items-center" 
+                            :class="form.cena === 'SI' ? (cumpleLogicaCena() ? 'border-green-500 bg-green-500/10' : 'border-amber-500 bg-amber-500/10') : 'border-transparent'">
+                        <span class="material-symbols-rounded text-slate-500">dinner_dining</span>
+                        <p class="text-[8px] font-black uppercase mt-1">Cena</p>
+                        <p class="text-xs font-black" :class="form.cena === 'SI' ? (cumpleLogicaCena() ? 'text-green-400' : 'text-amber-400') : 'text-slate-700'" x-text="form.cena"></p>
+                    </button>
+                </div>
+            </div>
+
+            <div class="fixed bottom-0 left-0 w-full p-4 safe-bottom">
+                <div class="glass-card p-5 flex justify-between items-center shadow-2xl border-t border-white/5">
+                    <div class="flex gap-6">
+                        <div class="text-center"><p class="text-[8px] font-black text-slate-500 uppercase tracking-tighter">Horas</p><p class="text-2xl font-black text-white" x-text="res.total"></p></div>
+                        <div class="text-center"><p class="text-[8px] font-black text-slate-500 uppercase tracking-tighter">KMs</p><p class="text-2xl font-black dynamic-text" x-text="res.kmTotales"></p></div>
+                    </div>
+                    <button @click="guardarJornada()" class="dynamic-bg h-14 w-14 rounded-2xl flex items-center justify-center btn-press shadow-lg">
+                        <span class="material-symbols-rounded text-white text-3xl">done_all</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <template x-if="screen === 3">
+        <div class="flex flex-col h-full p-4 space-y-4">
+            <header class="flex items-center justify-between">
+                <button @click="screen = 1" class="p-2 btn-press"><span class="material-symbols-rounded">arrow_back</span></button>
+                <div class="text-center">
+                    <h2 class="font-black uppercase text-[10px] dynamic-text tracking-widest">Resumen Mensual</h2>
+                    <p class="text-xs font-bold text-white uppercase" x-text="mesNombre"></p>
+                </div>
+                <div class="flex gap-1">
+                    <button @click="archivarMes()" class="p-2 text-slate-400 btn-press"><span class="material-symbols-rounded">inventory_2</span></button>
+                    <button @click="generarPDF()" class="p-2 text-slate-400 btn-press"><span class="material-symbols-rounded">picture_as_pdf</span></button>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-3 gap-2">
+                <div class="glass-card p-2 text-center border-b-2 border-blue-500"><p class="text-[7px] font-black text-slate-500 uppercase">H. Total</p><p class="text-xs font-black" x-text="tot.h"></p></div>
+                <div class="glass-card p-2 text-center border-b-2 border-indigo-500"><p class="text-[7px] font-black text-slate-500 uppercase">Nocturn.</p><p class="text-xs font-black" x-text="tot.noc"></p></div>
+                <div class="glass-card p-2 text-center border-b-2 border-orange-500"><p class="text-[7px] font-black text-slate-500 uppercase">Partidos</p><p class="text-xs font-black" x-text="tot.p"></p></div>
+                <div class="glass-card p-2 text-center border-b-2 border-green-600"><p class="text-[7px] font-black text-slate-500 uppercase">Comidas</p><p class="text-xs font-black" x-text="tot.com"></p></div>
+                <div class="glass-card p-2 text-center border-b-2 border-green-400"><p class="text-[7px] font-black text-slate-500 uppercase">Cenas</p><p class="text-xs font-black" x-text="tot.cen"></p></div>
+                <div class="glass-card p-2 text-center border-b-2 border-cyan-500"><p class="text-[7px] font-black text-slate-500 uppercase">Km Tot.</p><p class="text-xs font-black" x-text="tot.km"></p></div>
+            </div>
+
+            <div id="capture-area" class="flex-grow overflow-y-auto space-y-4 pb-20">
+                <template x-for="semana in historyByWeeks" :key="semana.num">
+                    <div class="glass-card overflow-hidden border border-white/5">
+                        <div class="bg-white/5 px-4 py-2 flex justify-between items-center border-b border-white/10">
+                            <span class="text-[10px] font-black text-slate-400 uppercase" x-text="'Semana ' + semana.num"></span>
+                            <button @click="enviarSemanaGoogle(semana)" class="flex items-center gap-1.5 px-3 py-1 bg-[#1d8543] text-white rounded-lg text-[8px] font-black btn-press shadow-md">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/3/30/Google_Sheets_logo_%282014-2020%29.svg" class="w-3 h-3" />
+                                SHEETS
+                            </button>
+                        </div>
+                        <table class="w-full text-[9px] text-center">
+                            <thead class="bg-black/20 text-[7px] font-black text-slate-500 uppercase"><tr><th class="p-2">Día</th><th>Bus</th><th>Horas</th><th>Km</th><th>D.</th></tr></thead>
+                            <tbody>
+                                <template x-for="i in semana.dias" :key="i.fecha">
+                                    <tr class="border-b border-white/5 font-bold">
+                                        <td class="p-2 text-slate-400" x-text="i.fecha.split('-')[2]"></td>
+                                        <td class="text-yellow-500" x-text="i.bus"></td>
+                                        <td class="text-white">
+                                            <span x-text="i.hStr"></span><br>
+                                            <span class="text-[7px] text-indigo-400" x-text="i.noctStr + ' noc'"></span>
+                                        </td>
+                                        <td class="text-cyan-400" x-text="i.km"></td>
+                                        <td class="flex justify-center gap-0.5 py-3">
+                                            <div x-show="i.comida === 'SI'" class="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                            <div x-show="i.cena === 'SI'" class="w-1.5 h-1.5 rounded-full bg-green-300"></div>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+
+    <template x-if="screen === 4">
+        <div class="flex flex-col h-full p-4 space-y-6 overflow-y-auto">
+            <header class="flex items-center gap-4"><button @click="screen = 1" class="p-2 btn-press"><span class="material-symbols-rounded">arrow_back</span></button><h2 class="font-black text-xs uppercase tracking-widest">Configuración</h2></header>
+            
+            <div class="glass-card p-5 space-y-6">
+                <div>
+                    <p class="text-[10px] font-black uppercase text-slate-500 mb-4 text-center">Color de Interfaz</p>
+                    <div class="flex justify-between px-2">
+                        <template x-for="c in ['blue', 'emerald', 'purple', 'gray', 'amber']">
+                            <button @click="config.theme = c; saveConfig()" class="w-10 h-10 rounded-full border-4 transition-all" :class="config.theme === c ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-50'" :style="'background-color:' + {blue:'#3b82f6',emerald:'#10b981',purple:'#a855f7',gray:'#94a3b8',amber:'#f59e0b'}[c]"></button>
+                        </template>
+                    </div>
+                </div>
+
+                <div>
+                    <p class="text-[10px] font-black uppercase text-slate-500 mb-2">Google Sheets Webhook URL</p>
+                    <input type="text" x-model="config.sheetUrl" @change="saveConfig()" class="w-full p-3 input-field text-[9px] outline-none text-slate-300" placeholder="https://script.google.com/...">
+                </div>
+            </div>
+
+            <div class="glass-card p-5 space-y-4">
+                <p class="text-[10px] font-black uppercase text-slate-500 text-center">Gestión de Datos</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button @click="exportarDatos()" class="p-3 bg-white/5 rounded-xl text-[9px] font-black uppercase flex flex-col items-center gap-2"><span class="material-symbols-rounded text-blue-400">download</span> Exportar</button>
+                    <button @click="$refs.fileInput.click()" class="p-3 bg-white/5 rounded-xl text-[9px] font-black uppercase flex flex-col items-center gap-2"><span class="material-symbols-rounded text-emerald-400">upload</span> Importar</button>
+                    <input type="file" x-ref="fileInput" @change="importarDatos" class="hidden" accept=".json">
+                </div>
+                <button @click="copiarBackupTexto()" class="w-full p-3 bg-white/5 rounded-xl text-[9px] font-black uppercase flex items-center justify-center gap-2"><span class="material-symbols-rounded text-xs">content_copy</span> Copiar Historial (Texto)</button>
+            </div>
+
+            <button @click="borrarTodo()" class="w-full text-red-500 text-[10px] font-black p-4 uppercase border border-red-500/20 rounded-xl bg-red-500/5">Borrar Todo</button>
+            <p class="text-[8px] text-center text-slate-600 font-bold uppercase">Med Basha Pro v10.0 • Menorca Edition</p>
+        </div>
+    </template>
+
+    <script>
+        function tmsaPro() {
+            return {
+                screen: 1, fechaSeleccionada: new Date().toISOString().split('T')[0], currentTime: '',
+                mes: new Date().getMonth(), año: new Date().getFullYear(), mesNombre: '',
+                diasCalendario: [], history: [], archives: [], drafts: {},
+                form: { esPartida: false, bus1: '', bus2: '', horaE1: '', horaS1: '', kmI1: '', kmF1: '', horaE2: '', horaS2: '', kmI2: '', kmF2: '', comida: 'NO', cena: 'NO' },
+                res: { total: '00:00', kmTotales: 0, nocturnidad: '00:00' },
+                tot: { h:0, p:0, com:0, cen:0, noc:0, km:0 },
+                config: { theme: 'gray', fontSize: 14, sheetUrl: '' },
+                errorBus: false,
+
+                initApp() {
+                    this.history = JSON.parse(localStorage.getItem('tmsa_history_v9') || '[]');
+                    this.archives = JSON.parse(localStorage.getItem('tmsa_archives_v9') || '[]');
+                    this.drafts = JSON.parse(localStorage.getItem('tmsa_drafts_v9') || '{}');
+                    const s = JSON.parse(localStorage.getItem('tmsa_config_v9'));
+                    if (s) this.config = { ...this.config, ...s };
+                    this.renderCalendario();
+                    setInterval(() => { this.currentTime = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }, 1000);
+                },
+
+                saveConfig() { localStorage.setItem('tmsa_config_v9', JSON.stringify(this.config)); },
+                
+                renderCalendario() {
+                    const d = new Date(this.año, this.mes + 1, 0).getDate();
+                    this.mesNombre = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(new Date(this.año, this.mes));
+                    this.diasCalendario = Array.from({length: d}, (_, i) => ({
+                        num: i + 1, fecha: `${this.año}-${String(this.mes+1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`,
+                        isHoy: `${this.año}-${String(this.mes+1).padStart(2,'0')}-${String(i+1).padStart(2,'0')}` === new Date().toISOString().split('T')[0]
+                    }));
+                },
+
+                seleccionarDia(f) { this.fechaSeleccionada = f; this.cargarBorrador(f); this.screen = 2; },
+                abrirRegistroRapido(p) { this.fechaSeleccionada = new Date().toISOString().split('T')[0]; this.cargarBorrador(this.fechaSeleccionada); this.form.esPartida = p; this.saveDraft(); this.screen = 2; },
+                
+                cargarBorrador(f) { 
+                    const b = { esPartida: false, bus1: '', bus2: '', horaE1: '', horaS1: '', kmI1: '', kmF1: '', horaE2: '', horaS2: '', kmI2: '', kmF2: '', comida: 'NO', cena: 'NO' };
+                    this.form = this.drafts[f] ? {...b, ...this.drafts[f]} : b;
+                    this.calcularTodo();
+                },
+
+                validarFin(bloque) {
+                    if (bloque === 1 && this.form.horaS1 && !this.form.horaE1) {
+                        alert("⚠️ Supervisor: No puedes poner hora de fin sin haber puesto la de inicio.");
+                        this.form.horaS1 = '';
+                    } else if (bloque === 2 && this.form.horaS2 && !this.form.horaE2) {
+                        alert("⚠️ Supervisor: No puedes poner hora de fin sin haber puesto la de inicio en el Bloque 2.");
+                        this.form.horaS2 = '';
+                    }
+                    this.calcularTodo();
+                    this.saveDraft();
+                },
+
+                saveDraft() { 
+                    this.drafts[this.fechaSeleccionada] = {...this.form}; 
+                    localStorage.setItem('tmsa_drafts_v9', JSON.stringify(this.drafts));
+                },
+
+                tieneBorrador(f) { return this.drafts[f] && (this.drafts[f].bus1 || this.drafts[f].horaE1); },
+                p(t) { if(!t) return null; let [h,m]=t.split(':').map(Number); return h*60+m; },
+
+                cumpleLogicaComida() {
+                    let [h, m] = this.res.total.split(':').map(Number); let hDec = h + m/60;
+                    let hF = (this.form.esPartida && this.form.horaS2) ? this.form.horaS2 : this.form.horaS1;
+                    if (!hF) return false;
+                    return ( (hDec >= 6 && this.p(hF) >= this.p("15:30")) || (hF === "15:00" || hF === "15:30") || (hDec > 9) );
+                },
+
+                cumpleLogicaCena() {
+                    let hF = (this.form.esPartida && this.form.horaS2) ? this.form.horaS2 : this.form.horaS1;
+                    return hF && this.p(hF) >= this.p("23:00");
+                },
+
+                calcularTodo() {
+                    const cM = (e, s) => { let me = this.p(e), ms = this.p(s); if (me===null||ms===null) return 0; return ms<=me ? (ms+1440)-me : ms-me; };
+                    let m1 = cM(this.form.horaE1, this.form.horaS1), m2 = this.form.esPartida ? cM(this.form.horaE2, this.form.horaS2) : 0;
+                    let tM = (m1+m2 > 0 && m1+m2 < 360) ? 360 : m1+m2;
+                    this.res.total = Math.floor(tM/60).toString().padStart(2,'0')+":"+Math.round(tM%60).toString().padStart(2,'0');
+                    this.res.kmTotales = (parseInt(this.form.kmF1)-parseInt(this.form.kmI1)||0) + (this.form.esPartida ? (parseInt(this.form.kmF2)-parseInt(this.form.kmI2)||0) : 0);
+                    
+                    let n = 0;
+                    const cN = (e, s) => { let me=this.p(e), ms=this.p(s); if(me===null||ms===null) return; let d=ms<=me?(ms+1440)-me:ms-me; for(let i=0;i<d;i++){let a=(me+i)%1440; if(a>=1320||a<360) n++;}};
+                    cN(this.form.horaE1, this.form.horaS1); if(this.form.esPartida) cN(this.form.horaE2, this.form.horaS2);
+                    this.res.nocturnidad = Math.floor(n/60).toString().padStart(2,'0')+":"+(n%60).toString().padStart(2,'0');
+
+                    if(this.cumpleLogicaComida()) this.form.comida = "SI";
+                    if(this.cumpleLogicaCena()) this.form.cena = "SI";
+                },
+
+                guardarJornada() {
+                    if(!this.form.bus1) { this.errorBus = true; alert("⚠️ Falta el número de BUS."); return; }
+                    this.history = this.history.filter(i => i.fecha !== this.fechaSeleccionada);
+                    this.history.push({ 
+                        fecha: this.fechaSeleccionada, bus: this.form.esPartida ? `${this.form.bus1}/${this.form.bus2}` : this.form.bus1, 
+                        hStr: this.res.total, km: this.res.kmTotales, plus: this.form.esPartida ? 'SÍ' : 'NO', 
+                        noctStr: this.res.nocturnidad, comida: this.form.comida, cena: this.form.cena
+                    });
+                    localStorage.setItem('tmsa_history_v9', JSON.stringify(this.history));
+                    delete this.drafts[this.fechaSeleccionada]; localStorage.setItem('tmsa_drafts_v9', JSON.stringify(this.drafts));
+                    this.screen = 3;
+                },
+
+                get historyByWeeks() {
+                    let f = this.history.filter(i => new Date(i.fecha).getMonth() === this.mes && new Date(i.fecha).getFullYear() === this.año).sort((a,b) => b.fecha.localeCompare(a.fecha));
+                    let w = {}; let th=0, tp=0, tk=0, tc=0, tce=0, tn=0;
+                    f.forEach(i => {
+                        let d = new Date(i.fecha); d.setHours(0,0,0,0); d.setDate(d.getDate()+4-(d.getDay()||7));
+                        let wk = Math.ceil((((d-new Date(d.getFullYear(),0,1))/86400000)+1)/7);
+                        if(!w[wk]) w[wk] = { num: wk, dias: [] }; w[wk].dias.push(i);
+                        let [h, m] = i.hStr.split(':').map(Number); th += (h+m/60);
+                        let [nh, nm] = i.noctStr.split(':').map(Number); tn += (nh+nm/60);
+                        if(i.plus==='SÍ') tp++; tk+=i.km; if(i.comida==='SI') tc++; if(i.cena==='SI') tce++;
+                    });
+                    this.tot = { h:th.toFixed(1), p:tp, km:tk, com:tc, cen:tce, noc:tn.toFixed(1) };
+                    return Object.values(w).sort((a,b) => b.num - a.num);
+                },
+
+                archivarMes() {
+                    if (confirm("¿Archivar jornadas de este mes? Se moverán al baúl y no saldrán en el reporte activo.")) {
+                        const actual = this.history.filter(i => new Date(i.fecha).getMonth() === this.mes && new Date(i.fecha).getFullYear() === this.año);
+                        this.archives = [...this.archives, ...actual];
+                        this.history = this.history.filter(i => !(new Date(i.fecha).getMonth() === this.mes && new Date(i.fecha).getFullYear() === this.año));
+                        localStorage.setItem('tmsa_history_v9', JSON.stringify(this.history));
+                        localStorage.setItem('tmsa_archives_v9', JSON.stringify(this.archives));
+                        alert("Mes archivado con éxito.");
+                    }
+                },
+
+                exportarDatos() {
+                    const data = { history: this.history, archives: this.archives, config: this.config };
+                    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = `TMSA_BACKUP.json`; a.click();
+                },
+
+                importarDatos(event) {
+                    const file = event.target.files[0]; if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const data = JSON.parse(e.target.result);
+                        if (data.history) {
+                            this.history = data.history; this.archives = data.archives || [];
+                            localStorage.setItem('tmsa_history_v9', JSON.stringify(this.history));
+                            alert("✅ Backup cargado."); location.reload();
+                        }
+                    };
+                    reader.readAsText(file);
+                },
+
+                copiarBackupTexto() {
+                    navigator.clipboard.writeText(JSON.stringify(this.history));
+                    alert("✅ Historial copiado al portapapeles.");
+                },
+
+                enviarSemanaGoogle(s) {
+                    if(!this.config.sheetUrl) return alert("Configura la URL de Sheets en Ajustes.");
+                    fetch(this.config.sheetUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(s.dias) })
+                    .then(() => alert("✅ Datos enviados a Google Sheets.")).catch(() => alert("❌ Error al enviar."));
+                },
+
+                cambiarMes(v) { this.mes += v; if(this.mes<0){this.mes=11;this.año--} if(this.mes>11){this.mes=0;this.año++} this.renderCalendario(); },
+                estadoJornada(f) { return this.history.some(i => i.fecha === f); },
+                formatearFechaLarga(f) { return new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(f)); },
+                generarPDF() { html2pdf().from(document.getElementById('capture-area')).save(`TMSA_${this.mesNombre}.pdf`); },
+                borrarTodo() { if(confirm("¿BORRAR TODO? Esto no se puede deshacer.")) { localStorage.clear(); location.reload(); } }
+            }
+        }
+    </script>
+</body>
+</html>
